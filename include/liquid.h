@@ -145,6 +145,8 @@ const char *        liquid_error_info(liquid_error_code _code);
 #endif
 //#   define LIQUID_DEFINE_COMPLEX(R,C) typedef R C[2]
 
+typedef struct {short real; short imag;} liquid_int16_complex;
+//LIQUID_DEFINE_COMPLEX(short,  liquid_int16_complex);
 LIQUID_DEFINE_COMPLEX(float,  liquid_float_complex);
 LIQUID_DEFINE_COMPLEX(double, liquid_double_complex);
 
@@ -5429,6 +5431,15 @@ int ofdmflexframegen_write(ofdmflexframegen       _q,
                            unsigned int           _buf_len);
 
 //
+// write samples of assembled frame float complex is converted to sc16q11 first
+//  _q              :   OFDM frame generator object
+//  _buf            :   output buffer [size: _buf_len x 1]
+//  _buf_len        :   output buffer length
+int ofdmflexframegen_write_sc16q11(ofdmflexframegen       _q,
+                           int16_t * _buf,
+                           unsigned int           _buf_len);
+
+//
 // OFDM flex frame synchronizer
 //
 
@@ -5467,6 +5478,9 @@ int ofdmflexframesync_reset(ofdmflexframesync _q);
 int  ofdmflexframesync_is_frame_open(ofdmflexframesync _q);
 int ofdmflexframesync_execute(ofdmflexframesync _q,
                               liquid_float_complex * _x,
+                              unsigned int _n);
+int ofdmflexframesync_execute_sc16q11(ofdmflexframesync _q,
+                              int16_t * _x,
                               unsigned int _n);
 
 // query the received signal strength indication

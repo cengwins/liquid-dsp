@@ -356,8 +356,41 @@ int ofdmflexframesync_execute(ofdmflexframesync _q,
                               unsigned int      _n)
 {
     // push samples through ofdmframesync object
+    //printf("ofdmflexframesync_execute %u\n", _n);
     return ofdmframesync_execute(_q->fs, _x, _n);
 }
+
+/**
+ * Convert an array of SC16Q11 values (bladeRF ADC/DAC format) to
+ * complexf values.
+ *
+ * @param[in    in      Input  SC16Q11 values (interleaved IQ)
+ * @param[out]  out     Output complex f values.
+ * @param[in]   n       Length of both `in` and `out`
+ */
+void sc16q11_to_complexf( int16_t *in,
+                        float complex *out, unsigned int n)
+{
+    unsigned int i, j;
+
+    for (i = j = 0; i < (2 * n); i += 2, j++) {
+        out[j] = (float) in[i]   * (1.0f / 2048.0f) + (float) in[i+1] * (1.0f / 2048.0f) * I;
+        //out[j].real = (float) in[i]   * (1.0f / 2048.0f);
+        //out[j].imag = (float) in[i+1] * (1.0f / 2048.0f);
+    }
+}
+
+// execute synchronizer object on buffer of samples
+int ofdmflexframesync_execute_sc16q11(ofdmflexframesync _q,
+                              int16_t *    _x,
+                              unsigned int      _n)
+{
+    // push samples through ofdmframesync object
+    float complex * _bufinternal = (float complex *) malloc(_n * sizeof(float complex));
+    sc16q11_to_complexf(_x,_bufinternal, _n);
+    return ofdmframesync_execute(_q->fs, _bufinternal, _n);
+}
+
 
 // 
 // query methods
@@ -525,7 +558,7 @@ int ofdmflexframesync_rxheader(ofdmflexframesync _q,
                                  0,
                                  _q->framesyncstats,
                                  _q->userdata);
-
+                    //printf("OFDM Callback invoked\n");
                     ofdmflexframesync_reset(_q);
                 }
                 break;
@@ -756,7 +789,7 @@ int ofdmflexframesync_rxpayload(ofdmflexframesync _q,
                              _q->framesyncstats,
                              _q->userdata);
 
-
+                //printf("OFDM Callback invoked in ofdmflexframesync_rxpayload ");
                 // reset object
                 ofdmflexframesync_reset(_q);
                 break;

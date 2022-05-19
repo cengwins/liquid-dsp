@@ -49,7 +49,7 @@ int main(int argc, char*argv[])
     unsigned int      M           = 64;                 // number of subcarriers
     unsigned int      cp_len      = 16;                 // cyclic prefix length
     unsigned int      taper_len   = 4;                  // taper length
-    unsigned int      payload_len = 120;                // length of payload (bytes)
+    unsigned int      payload_len = 8;                // length of payload (bytes)
     modulation_scheme ms          = LIQUID_MODEM_QPSK;  // modulation scheme
     fec_scheme        fec0        = LIQUID_FEC_NONE;    // inner code
     fec_scheme        fec1        = LIQUID_FEC_HAMMING128; // outer code
@@ -85,7 +85,7 @@ int main(int argc, char*argv[])
     // TODO : validate options
 
     // derived values
-    unsigned int  buf_len = 256;
+    unsigned int  buf_len = 1024;
     float complex buf[buf_len]; // time-domain buffer
 
     // allocate memory for header, payload
@@ -106,33 +106,40 @@ int main(int argc, char*argv[])
     if (debug)
         ofdmflexframesync_debug_enable(fs);
 
-    // initialize header/payload and assemble frame
-    for (i=0; i<8; i++)
-        header[i] = i & 0xff;
-    for (i=0; i<payload_len; i++)
-        payload[i] = rand() & 0xff;
-    ofdmflexframegen_assemble(fg, header, payload, payload_len);
-    ofdmflexframegen_print(fg);
-    ofdmflexframesync_print(fs);
-
     // create channel and add impairments
     channel_cccf channel = channel_cccf_create();
     channel_cccf_add_awgn(channel, noise_floor, SNRdB);
     channel_cccf_add_carrier_offset(channel, dphi, 0.0f);
 
-    // generate frame, push through channel
-    int last_symbol=0;
-    while (!last_symbol) {
-        // generate symbol
-        last_symbol = ofdmflexframegen_write(fg, buf, buf_len);
+    int cnt = 0;
+    while ( cnt < 10 )
+    {
+        cnt = cnt + 1;
+        // initialize header/payload and assemble frame
+        for (i=0; i<8; i++)
+            header[i] = i & 0xff;
+        for (i=0; i<payload_len; i++)
+            payload[i] = rand() & 0xff;
+        payload[0] = cnt;
+        ofdmflexframegen_assemble(fg, header, payload, payload_len);
+        ofdmflexframegen_print(fg);
+        ofdmflexframesync_print(fs);
 
-        // apply channel to buffer (in place)
-        channel_cccf_execute_block(channel, buf, buf_len, buf);
 
-        // push samples through synchronizer
-        ofdmflexframesync_execute(fs, buf, buf_len);
+    
+        // generate frame, push through channel
+        int last_symbol=0;
+        while (!last_symbol) {
+            // generate symbol
+            last_symbol = ofdmflexframegen_write(fg, buf, buf_len);
+
+            // apply channel to buffer (in place)
+            channel_cccf_execute_block(channel, buf, buf_len, buf);
+
+            // push samples through synchronizer
+            ofdmflexframesync_execute(fs, buf, buf_len);
+        }
     }
-
     // export debugging file
     if (debug)
         ofdmflexframesync_debug_print(fs, "ofdmflexframesync_debug.m");
@@ -179,7 +186,7 @@ int callback(unsigned char *  _header,
     unsigned char * payload_tx = (unsigned char*) _userdata;
     unsigned int num_errors = count_bit_errors_array(_payload, payload_tx, _payload_len);
     printf("  bit errors : %u / %u\n", num_errors, 8*_payload_len);
-
+    sleep(1);
     return 0;
 }
 

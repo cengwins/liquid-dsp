@@ -177,6 +177,7 @@ ofdmflexframegen ofdmflexframegen_create(unsigned int              _M,
     q->p = (unsigned char*) malloc((q->M)*sizeof(unsigned char));
     if (_p == NULL) {
         // initialize default subcarrier allocation
+        //printf("Defaults sucarrier allocation is generated\n");
         ofdmframe_init_default_sctype(q->M, q->p);
     } else {
         // copy user-defined subcarrier allocation
@@ -185,7 +186,7 @@ ofdmflexframegen ofdmflexframegen_create(unsigned int              _M,
 
     // validate and count subcarrier allocation
     ofdmframe_validate_sctype(q->p, q->M, &q->M_null, &q->M_pilot, &q->M_data);
-
+    //printf("M: %u\tM_data %u\tM_null %u\tM_pilot %u\tM_S0 %u\tM_S1 %u\n",q->M, q->M_data, q->M_null, q->M_pilot, q->M_S0, q->M_S1 );
     // create internal OFDM frame generator object
     q->fg = ofdmframegen_create(q->M, q->cp_len, q->taper_len, q->p);
 
@@ -458,11 +459,61 @@ int ofdmflexframegen_assemble(ofdmflexframegen      _q,
     liquid_repack_bytes(_q->payload_enc,  8,  _q->payload_enc_len,
                         _q->payload_mod, bps, _q->payload_mod_len,
                         &num_written);
+    //printf("ofdmflexframegen_assemble: ");
+    //for(int k=0;k<_q->payload_mod_len; k++){
+    //    printf("%u\t", _q->payload_mod[k]);
+    //}
+    //printf("\nwrote %u symbols (expected %u)\n", num_written, _q->payload_mod_len);
 #if DEBUG_OFDMFLEXFRAMEGEN
     printf("wrote %u symbols (expected %u)\n", num_written, _q->payload_mod_len);
 #endif
     return LIQUID_OK;
 }
+
+
+/**
+ * Convert an array of complexf values to SC16Q11
+ * values (bladeRF ADC/DAC format)
+ *
+ * @param[in    in      Input SC16Q11 values (interleaved IQ)
+ * @param[out]  out     Output complex f values.
+ * @param[in]   n       Length of both `in` and `out`
+ */
+void complexf_to_sc16q11( float complex *in,
+                                       int16_t *out, unsigned int n)
+{
+    unsigned int i, j;
+
+    for (i = j = 0; i < n; i++, j += 2) {
+        out[j]   = (int16_t) (crealf(in[i]) * 2048.0f);
+        out[j+1] = (int16_t) (cimagf(in[i]) * 2048.0f);
+    }
+}
+
+// write samples of assembled frame
+//  _q              :   OFDM frame generator object
+//  _buf            :   output buffer [size: _buf_len x 1]
+//  _buf_len        :   output buffer length
+int ofdmflexframegen_write_sc16q11(ofdmflexframegen _q,
+                           int16_t *  _buf,
+                           unsigned int     _buf_len)
+{
+    unsigned int i;
+    float complex * _bufinternal = (float complex *) malloc(_buf_len * sizeof(float complex));
+    for (i=0; i<_buf_len; i++) {
+        if (_q->buf_index >= _q->frame_len) {
+            ofdmflexframegen_gen_symbol(_q);
+            _q->buf_index = 0;
+        }
+
+        // TODO: write samples appropriately
+        _bufinternal[i] = _q->buf_tx[_q->buf_index++];
+    }
+    complexf_to_sc16q11(_bufinternal, _buf, _buf_len);
+    free(_bufinternal);
+    return _q->frame_complete;
+}
+
 
 // write samples of assembled frame
 //  _q              :   OFDM frame generator object
@@ -473,6 +524,7 @@ int ofdmflexframegen_write(ofdmflexframegen _q,
                            unsigned int     _buf_len)
 {
     unsigned int i;
+    //printf("ofdmflexframegen_write: ");
     for (i=0; i<_buf_len; i++) {
         if (_q->buf_index >= _q->frame_len) {
             ofdmflexframegen_gen_symbol(_q);
@@ -481,10 +533,12 @@ int ofdmflexframegen_write(ofdmflexframegen _q,
 
         // TODO: write samples appropriately
         _buf[i] = _q->buf_tx[_q->buf_index++];
+        //printf("%.5f%+.5fj\t", crealf(_buf[i]), cimagf(_buf[i]));
     }
+
+    //printf("\nofdmflexframegen_write %d\n", _buf_len);
     return _q->frame_complete;
 }
-
 
 //
 // internal
