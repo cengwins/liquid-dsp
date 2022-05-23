@@ -486,7 +486,13 @@ void complexf_to_sc16q11( float complex *in,
 
     for (i = j = 0; i < n; i++, j += 2) {
         out[j]   = (int16_t) (crealf(in[i]) * 2048.0f);
+        if ( out[j] > 2047 ) out[j] = 2047;
+        if ( out[j] <-2048 ) out[j] = -2048;
+        
         out[j+1] = (int16_t) (cimagf(in[i]) * 2048.0f);
+        if ( out[j+1] > 2047 ) out[j+1] = 2047;
+        if ( out[j+1] <-2048 ) out[j+1] = -2048;
+
     }
 }
 

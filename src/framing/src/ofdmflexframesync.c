@@ -369,15 +369,28 @@ int ofdmflexframesync_execute(ofdmflexframesync _q,
  * @param[in]   n       Length of both `in` and `out`
  */
 void sc16q11_to_complexf( int16_t *in,
-                        float complex *out, unsigned int n)
+                        float *out, unsigned int n)
 {
     unsigned int i, j;
-
+    float vr, vi;
+    float scalefactor = 2048.0f;
+    //printf("liquid: [");
     for (i = j = 0; i < (2 * n); i += 2, j++) {
-        out[j] = (float) in[i]   * (1.0f / 2048.0f) + (float) in[i+1] * (1.0f / 2048.0f) * I;
+
+        vr = (float)in[i]    / scalefactor;
+        vi = (float)in[i+1]  / scalefactor;
+        out[i] =   vr ;
+        out[i+1] = vi ;
+        //out[j] = (float complex) (vr + vi *I);
+        //out[j] =  (float complex) ( ((float)in[i]   * (1.0f / 1.0f)) +   ((float)in[i+1] * (1.0f / 1.0f)) * I );
         //out[j].real = (float) in[i]   * (1.0f / 2048.0f);
         //out[j].imag = (float) in[i+1] * (1.0f / 2048.0f);
+        //if (j<5){
+            //printf("%d %d ", (int16_t)in[i],(int16_t)in[i+1]);
+            //printf("%.4f+%.4fj ", vr , vi);
+        //}
     }
+    //printf("]\n");
 }
 
 // execute synchronizer object on buffer of samples
@@ -386,9 +399,18 @@ int ofdmflexframesync_execute_sc16q11(ofdmflexframesync _q,
                               unsigned int      _n)
 {
     // push samples through ofdmframesync object
-    float complex * _bufinternal = (float complex *) malloc(_n * sizeof(float complex));
+    int retval = 0;
+    float  * _bufinternal = (float  *) malloc(_n * 2* sizeof(float));
     sc16q11_to_complexf(_x,_bufinternal, _n);
-    return ofdmframesync_execute(_q->fs, _bufinternal, _n);
+    //float complex * temp = (float complex *)_bufinternal;
+    // printf("liquid: [");
+    // for (int i=0; i< 5; i++){
+    //     printf("%.5f+%.5fj ", crealf(temp[i]), cimagf(temp[i]) );
+    // }
+    // printf("]\n");
+    retval = ofdmframesync_execute(_q->fs, (liquid_float_complex *)_bufinternal, _n);
+    free(_bufinternal);
+    return retval;
 }
 
 

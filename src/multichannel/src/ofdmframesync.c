@@ -381,18 +381,23 @@ int ofdmframesync_execute(ofdmframesync   _q,
 
         switch (_q->state) {
         case OFDMFRAMESYNC_STATE_SEEKPLCP:
+            //printf("Will call ofdmframesync_execute_seekplcp\n");
             ofdmframesync_execute_seekplcp(_q);
             break;
         case OFDMFRAMESYNC_STATE_PLCPSHORT0:
+            //printf("Will call ofdmframesync_execute_S0a\n");
             ofdmframesync_execute_S0a(_q);
             break;
         case OFDMFRAMESYNC_STATE_PLCPSHORT1:
+            //printf("Will call ofdmframesync_execute_S0b\n");
             ofdmframesync_execute_S0b(_q);
             break;
         case OFDMFRAMESYNC_STATE_PLCPLONG:
+            //printf("Will call ofdmframesync_execute_S1\n");
             ofdmframesync_execute_S1(_q);
             break;
         case OFDMFRAMESYNC_STATE_RXSYMBOLS:
+            //printf("Will call ofdmframesync_execute_rxsymbols\n");
             ofdmframesync_execute_rxsymbols(_q);
             break;
         default:;
@@ -430,9 +435,12 @@ int ofdmframesync_execute_seekplcp(ofdmframesync _q)
 {
     _q->timer++;
 
-    if (_q->timer < _q->M)
+    if (_q->timer < _q->M){
+        //printf("Returns since timer is less than M\n");
         return LIQUID_OK;
+    }
 
+    //printf("Reset timer\n");
     // reset timer
     _q->timer = 0;
 
@@ -449,7 +457,7 @@ int ofdmframesync_execute_seekplcp(ofdmframesync _q)
         g += crealf(rc[i])*crealf(rc[i]) + cimagf(rc[i])*cimagf(rc[i]);
     }
     g = (float)(_q->M) / g;
-
+    
 #if OFDMFRAMESYNC_ENABLE_SQUELCH
     // TODO : squelch here
     if ( -10*log10f( sqrtf(g) ) < _q->squelch_threshold &&
@@ -481,6 +489,7 @@ int ofdmframesync_execute_seekplcp(ofdmframesync _q)
 
     // 
     if (cabsf(s_hat) > _q->plcp_detect_thresh) {
+    //if (cabsf(s_hat) > 0.002) {
 
         int dt = (int)roundf(tau_hat);
         // set timer appropriately...
@@ -496,6 +505,10 @@ int ofdmframesync_execute_seekplcp(ofdmframesync _q)
         printf("    timer   :   %12u\n", _q->timer);
 #endif
     }
+    // else
+    // {
+    //     printf("Frame cannot be detected....\n");
+    // }
     return LIQUID_OK;
 }
 
@@ -721,7 +734,7 @@ int ofdmframesync_execute_rxsymbols(ofdmframesync _q)
 {
     // wait for timeout
     _q->timer--;
-
+    //printf("Timer %u\n", _q->timer);
     if (_q->timer == 0) {
 
         // run fft
@@ -742,6 +755,7 @@ int ofdmframesync_execute_rxsymbols(ofdmframesync _q)
             }
         }
 #endif
+        //printf("Will invoke callback...\n");
         // invoke callback
         if (_q->callback != NULL) {
             int retval = _q->callback(_q->X, _q->p, _q->M, _q->userdata);
